@@ -20,7 +20,12 @@ def get_weather(location, time):
     return WeatherObject(data.temp.iloc[0], data.rhum.iloc[0], data.wdir.iloc[0], data.wspd.iloc[0], data.pres.iloc[0], data.prcp.iloc[0])#, data["rhum"], data["wdir"], data["wspd"], data["pres"], data["prcp"])
 
 def get_rel(weather):
-    weather._rel = (4*weather.temp+(weather.wspd/10+weather.pres/2))/(3*weather.rhum+10*weather.prcp)
+    T_CO = 4
+    WS_CO = 1/10
+    WP_CO = 1/2
+    H_CO = 3
+    P_CO = 10
+    weather._rel = (T_CO*weather.temp+(weather.wspd*WS_CO+weather.pres*WP_CO))/(H_CO*weather.rhum+P_CO*weather.prcp)
     return weather
 
 current_weather = get_weather(Point(49.2497, -123.1193, 70), datetime.now())
