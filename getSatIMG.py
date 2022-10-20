@@ -1,47 +1,47 @@
-import ee
+api_url = "https://earth-search.aws.element84.com/v0"
+from time import sleep
+from pystac_client import Client
+import os
+from PIL import Image
+from func_timeout import *
 
-ee.Authenticate()
-ee.Initialize()
-"""
-# Import the MODIS land cover collection.
-lc = ee.ImageCollection('MODIS/006/MCD12Q1')
+client = Client.open(api_url)
 
-# Import the MODIS land surface temperature collection.
-lst = ee.ImageCollection('MODIS/006/MOD11A1')
+# collection: Sentinel-2, Level 2A, COGs
+collection = "sentinel-s2-l2a-cogs"
 
-# Import the USGS ground elevation image.
-elv = ee.Image('USGS/SRTMGL1_003')
+# AMS coordinates
+lat, lon = 37.3020, -121.9970
+geometry = {"type": "Point", "coordinates": (lon, lat)}
 
-# Initial date of interest (inclusive).
-i_date = '2017-01-01'
+mysearch = client.search(
+    collections=[collection],
+    intersects=geometry,
+    max_items=10,
+)
+#print(mysearch.matched())
+items = mysearch.get_all_items()
+#print(len(items))
+#for item in items:
+#    print(item)
+item = items[0]
+#print(item.datetime)
+#print(item.geometry)
+#print(item.properties)
+assets = items[-1].assets  # last item's asset dictionary
+#print(assets.keys())
+#for key, asset in assets.items():
+#    print(f"{key}: {asset.title}")
+#print(assets["thumbnail"].href)
+import rioxarray
+visual_href = assets["visual"].href
+visual = rioxarray.open_rasterio(visual_href)
 
-# Final date of interest (exclusive).
-f_date = '2020-01-01'
+@func_set_timeout(10)
+def out_tif():
+    visual.rio.to_raster("out.tif")#, cache=False)#, tiled=True, windowed=True)
+    visual.close()
 
-# Selection of appropriate bands and dates for LST.
-lst = lst.select('LST_Day_1km', 'QC_Day').filterDate(i_date, f_date)
-
-# Define the urban location of interest as a point near Lyon, France.
-u_lon = 4.8148
-u_lat = 45.7758
-u_poi = ee.Geometry.Point(u_lon, u_lat)
-
-# Define the rural location of interest as a point away from the city.
-r_lon = 5.175964
-r_lat = 45.574064
-r_poi = ee.Geometry.Point(r_lon, r_lat)
-
-scale = 1000  # scale in meters
-
-# Print the elevation near Lyon, France.
-elv_urban_point = elv.sample(u_poi, scale).first().get('elevation').getInfo()
-print('Ground elevation at urban point:', elv_urban_point, 'm')
-
-# Calculate and print the mean value of the LST collection at the point.
-lst_urban_point = lst.mean().sample(u_poi, scale).first().get('LST_Day_1km').getInfo()
-print('Average daytime LST at urban point:', round(lst_urban_point*0.02 -273.15, 2), '°C')
-
-# Print the land cover type at the point.
-lc_urban_point = lc.first().sample(u_poi, scale).first().get('LC_Type1').getInfo()
-print('Land cover value at urban point is:', lc_urban_point)
-"""
+im = Image.open('out.tif')
+im.thumbnail(im.size)
+im.save('out.jpeg', "JPEG", quality=100)
